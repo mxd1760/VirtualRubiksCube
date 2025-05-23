@@ -37,7 +37,7 @@ fragment = """
 
 
 CUBE_SCALE = 1
-CUBE_SECTIONS = 3
+CUBE_SECTIONS = 4
 
 TICK = 0.01*1000.0/60.0
 
@@ -220,7 +220,7 @@ class Canvas(app.Canvas):
           cube = self.cubes[idx]
           cube["spin"] = quat_multiply(cube["spin"],get_quat(TICK,self.spin.get_axis()))
 
-        self.quat = quat_multiply(self.quat,get_quat(TICK,(1,1,1)))
+        #self.quat = quat_multiply(self.quat,get_quat(TICK,(1,1,1)))
 
         while self.clock>90:
           self.clock-=90
@@ -228,6 +228,20 @@ class Canvas(app.Canvas):
 
         self.update()
 
+    def on_mouse_press(self,event):
+      self.mp = True
+      self.last_pos = event.pos
+
+    def on_mouse_release(self,event):
+      self.mp = False
+
+    def on_mouse_move(self,event):
+      if self.mp:
+        delta_x = (event.pos[0]-self.last_pos[0])*0.1
+        delta_y = (event.pos[1]-self.last_pos[1])*0.1
+        self.quat = quat_multiply(get_quat(delta_x,(0,-1,0)),self.quat)
+        self.quat = quat_multiply(get_quat(delta_y,(-1,0,0)),self.quat)
+        self.last_pos = event.pos
 
 def quat_multiply(q1,q2):
     x = q1[0]*q2[3]+q2[0]*q1[3]   +q1[1]*q2[2]-q2[1]*q1[2]
