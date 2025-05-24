@@ -37,9 +37,9 @@ fragment = """
 
 
 CUBE_SCALE = 1
-CUBE_SECTIONS = 4
+CUBE_SECTIONS = 3
 
-TICK = 0.01*1000.0/60.0
+TICK = 0.05*1000.0/60.0
 
 # rgba
 X_COLOR = (1,0,0,1)
@@ -48,6 +48,12 @@ Z_COLOR = (0,0,1,1)
 MX_COLOR = (0,1,1,1)
 MY_COLOR = (1,0,1,1)
 MZ_COLOR = (1,1,0,1)
+
+def gen_empty(CUBE_SECTIONS):
+  out = []
+  for i in range(CUBE_SECTIONS*CUBE_SECTIONS*CUBE_SECTIONS):
+    out.append(0)
+  return out
 
 class Spin(Enum):
   X_CW=1
@@ -70,25 +76,25 @@ class Spin(Enum):
       case Spin.X_CW:
         return (-1,0,0)
       case Spin.Y_CCW:
-        return (0,1,0)
-      case Spin.Y_CW:
         return (0,-1,0)
+      case Spin.Y_CW:
+        return (0,1,0)
       case Spin.Z_CCW:
         return (0,0,1)
       case Spin.Z_CW:
         return (0,0,-1)
       case Spin.MX_CCW:
-        return (-1,0,0)
-      case Spin.MX_CW:
         return (1,0,0)
+      case Spin.MX_CW:
+        return (-1,0,0)
       case Spin.MY_CCW:
         return (0,-1,0)
       case Spin.MY_CW:
         return (0,1,0)
       case Spin.MZ_CCW:
-        return (0,0,-1)
-      case Spin.MZ_CW:
         return (0,0,1)
+      case Spin.MZ_CW:
+        return (0,0,-1)
     
   def get_set(self):
     match self:
@@ -117,14 +123,115 @@ class Spin(Enum):
       case Spin.MZ_CW:
         return MZ_CUBES
 
+  def polarity(self):
+    return self.value>0
+
+  def next(self):
+    match self:
+      case Spin.X_CW:
+        return Spin.Y_CW
+      case Spin.Y_CW:
+        return Spin.Z_CW
+      case Spin.Z_CW:
+        return Spin.MX_CW
+      case Spin.MX_CW:
+        return Spin.MY_CW
+      case Spin.MY_CW:
+        return Spin.MZ_CW
+      case Spin.MZ_CW:
+        return Spin.X_CCW
+      case Spin.X_CCW:
+        return Spin.Y_CCW
+      case Spin.Y_CCW:
+        return Spin.Z_CCW
+      case Spin.Z_CCW:
+        return Spin.MX_CCW
+      case Spin.MX_CCW:
+        return Spin.MY_CCW
+      case Spin.MY_CCW:
+        return Spin.MZ_CCW
+      case Spin.MZ_CCW:
+        return Spin.X_CW
+
+  def next_in_pattern(self,pattern):
+    match pattern:
+      case _:
+        match self:
+          case Spin.X_CW:
+            return Spin.MX_CW
+          case Spin.Y_CW:
+            return Spin.MY_CW
+          case Spin.Z_CW:
+            return Spin.MZ_CW
+          case Spin.MX_CW:
+            return Spin.Y_CW
+          case Spin.MY_CW:
+            return Spin.Z_CW
+          case Spin.MZ_CW:
+            return Spin.X_CW
+          case Spin.X_CCW:
+            return Spin.MX_CCW
+          case Spin.Y_CCW:
+            return Spin.MY_CCW
+          case Spin.Z_CCW:
+            return Spin.MZ_CCW
+          case Spin.MX_CCW:
+            return Spin.Y_CCW
+          case Spin.MY_CCW:
+            return Spin.Z_CCW
+          case Spin.MZ_CCW:
+            return Spin.X_CCW
 
 def random_spin():
   return random.choice(list(Spin))
 
 def rotation_group_collector(first,x_off,y_off,side_length):
-  out = []
+  y = []
   for i in range(side_length):
-    out += range(first+i*y_off,first+i*y_off+x_off*side_length,x_off) 
+    x=[]
+    for j in range(side_length):
+      x.append(first+i*y_off+j*x_off)
+    y.append(x)
+  out=[]
+  pos = read_2d_arr(y)
+  next = right_2d_arr(y)
+  prev =  left_2d_arr(y)
+  for i in range(len(pos)):
+    out.append({'pos':pos[i],'next':next[i],'prev':prev[i]})
+  return out
+
+def read_2d_arr(arr):
+  out = []
+  for i in arr:
+    for j in i:
+      out.append(j)
+  return out
+
+def left_2d_arr(arr):
+  out = []
+  l = len(arr)
+  l2 = len(arr[0])
+  for i in range(l2):
+    for j in range(l):
+      out.append(arr[j][l2-1-i])
+  return out
+
+def right_2d_arr(arr):
+  out = []
+  l = len(arr)
+  l2 = len(arr[0])
+  for i in range(l2):
+    for j in range(l):
+      out.append(arr[l-1-j][i])
+  return out
+
+def apply_rotation(indices,arr,is_cw):
+  out = arr.copy()
+  tag = 'prev' if is_cw else 'next'
+  for i in indices:
+    f = i['pos']
+    t = i[tag]
+    out[t] = arr[f]
   return out
 
 def random_color():
@@ -155,7 +262,8 @@ class Canvas(app.Canvas):
                          keys='interactive')
         
         self.mp = False
-
+        self.debounce=False
+        self.do_ticks = True
 
         self.cubes = get_cubes(CUBE_SCALE,CUBE_SECTIONS)
         self.I = gloo.IndexBuffer(np.array([(0,1,2),(1,2,3)],dtype=np.uint32))
@@ -175,7 +283,9 @@ class Canvas(app.Canvas):
         self.clock=0
         self.timer.start()
 
-        self.spin = random_spin()
+        #self.debug_print_cubes()
+
+        self.spin = Spin.X_CW
         self.status = {}
         for i in Spin:
           self.status[i] = get_quat(0,(1,1,1))
@@ -211,20 +321,24 @@ class Canvas(app.Canvas):
         gloo.set_viewport(0, 0, *event.physical_size)
 
     def on_timer(self,event):
-        
+      if self.do_ticks:
         self.clock += TICK
-        
+      
         spin_set = self.spin.get_set()
-        
+      
         for idx in spin_set:
-          cube = self.cubes[idx]
-          cube["spin"] = quat_multiply(cube["spin"],get_quat(TICK,self.spin.get_axis()))
+          cube = self.cubes[idx['pos']]
+          cube["spin"] = quat_multiply(get_quat(TICK,self.spin.get_axis()),cube["spin"])
+        
 
         #self.quat = quat_multiply(self.quat,get_quat(TICK,(1,1,1)))
 
         while self.clock>90:
           self.clock-=90
-          self.spin = random_spin()
+          self.cubes = apply_rotation(spin_set,self.cubes,self.spin.polarity())
+          #self.spin = random_spin()
+          self.spin=self.spin.next_in_pattern("")
+          #print(self.spin)
 
         self.update()
 
@@ -242,6 +356,15 @@ class Canvas(app.Canvas):
         self.quat = quat_multiply(get_quat(delta_x,(0,-1,0)),self.quat)
         self.quat = quat_multiply(get_quat(delta_y,(-1,0,0)),self.quat)
         self.last_pos = event.pos
+        self.update()
+      
+    def on_key_press(self,event):
+      if not self.debounce:
+        self.do_ticks = not self.do_ticks
+      self.debounce = True
+    
+    def on_key_release(self,event):
+      self.debounce = False
 
 def quat_multiply(q1,q2):
     x = q1[0]*q2[3]+q2[0]*q1[3]   +q1[1]*q2[2]-q2[1]*q1[2]
