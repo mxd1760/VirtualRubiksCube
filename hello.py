@@ -1,4 +1,5 @@
 from vispy import app, gloo
+from vispy.util import keys
 from vispy.gloo import Program
 import numpy as np
 import math
@@ -359,12 +360,15 @@ class Canvas(app.Canvas):
         self.update()
       
     def on_key_press(self,event):
-      if not self.debounce:
-        self.do_ticks = not self.do_ticks
-      self.debounce = True
+      print(event.__dict__)
+      if event.key == keys.SPACE:
+        if not self.debounce:
+          self.do_ticks = not self.do_ticks
+        self.debounce = True
     
     def on_key_release(self,event):
-      self.debounce = False
+      if event.key==keys.SPACE:
+        self.debounce = False
 
 def quat_multiply(q1,q2):
     x = q1[0]*q2[3]+q2[0]*q1[3]   +q1[1]*q2[2]-q2[1]*q1[2]
