@@ -6,11 +6,13 @@ import random
 
 from quaternions import *
 from cube import Cube
+from spin import Spin
 
 
 
 CUBE_SECTIONS = 3
 PATTERN = "donuts"
+SPINS_FOR_SCRAMBLE = 23
 
 TICK = 0.10*1000.0/60.0
 SPIN_TIME = 1
@@ -52,7 +54,7 @@ class Canvas(app.Canvas):
 
         #self.debug_print_cubes()
 
-        self.spin = self.cube.spin(1)
+        self.spin_dir = self.cube.spin(1)
         self.status = {}
 
         self.show()
@@ -91,9 +93,38 @@ class Canvas(app.Canvas):
           self.do_ticks = not self.do_ticks
         self.debounce = True
       elif event.key == keys.Key("A") and self.cube.can_spin():
-        self.cube.start_spin(self.spin,self.now,SPIN_TIME)
-        self.spin = Cube.next_spin_in_pattern(PATTERN,self.spin)
+        self.do_spin(self.spin_dir)
+        self.spin_dir = Cube.next_spin_in_pattern(PATTERN,self.spin_dir)
+      elif event.key == keys.Key("S") and self.cube.can_spin():
+        self.cube.scramble(SPINS_FOR_SCRAMBLE)
+      elif event.key == keys.Key("1"):
+        self.do_spin(Spin.X_CW)
+      elif event.key == keys.Key("Q"):
+        self.do_spin(Spin.X_CCW)
+      elif event.key == keys.Key("2"):
+        self.do_spin(Spin.Y_CW)
+      elif event.key == keys.Key("W"):
+        self.do_spin(Spin.Y_CCW)
+      elif event.key == keys.Key("3"):
+        self.do_spin(Spin.Z_CW)
+      elif event.key == keys.Key("E"):
+        self.do_spin(Spin.Z_CCW)
+      elif event.key == keys.Key("4"):
+        self.do_spin(Spin.MX_CW)
+      elif event.key == keys.Key("R"):
+        self.do_spin(Spin.MX_CCW)
+      elif event.key == keys.Key("5"):
+        self.do_spin(Spin.MY_CW)
+      elif event.key == keys.Key("T"):
+        self.do_spin(Spin.MY_CCW)
+      elif event.key == keys.Key("6"):
+        self.do_spin(Spin.MZ_CW)
+      elif event.key == keys.Key("Y"):
+        self.do_spin(Spin.MZ_CCW)
     
+    def do_spin(self,direction):
+      self.cube.start_spin(direction,SPIN_TIME,self.now)
+
     def on_key_release(self,event):
       if event.key== keys.SPACE:
         self.debounce = False

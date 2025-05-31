@@ -152,12 +152,27 @@ class Cube:
         self.cubes = Cube.apply_logical_rotation(spin_cubes,self.cubes,self.spin_dir.polarity())
         self.spinning = False
 
-  def start_spin(self,direction,now,timespan):
+  def scramble(self,n):
+    for i in range(n):
+      self.start_spin(Spin.random(),0)
+
+  def start_spin(self,direction,timespan,now=0):
+    if timespan < 0:
+      print("ERROR in start_spin: invalid timespan")
+      return
     if self.can_spin():
-      self.spin_dir = direction
-      self.spin_start = now
-      self.spin_time = timespan
-      self.spinning = True
+      if timespan == 0:
+        spin_cubes = self.get_cubes_for_turn(direction)
+        for idx in spin_cubes:
+          cube = self.cubes[idx['pos']]
+          cube["spin"] = quat_multiply(get_quat(90,Cube.get_axis(direction)),cube["spin"])
+          cube["anim_quat"] = quat_empty()
+        self.cubes = Cube.apply_logical_rotation(spin_cubes,self.cubes,direction.polarity())
+      else:
+        self.spin_dir = direction
+        self.spin_start = now
+        self.spin_time = timespan
+        self.spinning = True
 
   def can_spin(self):
     return not self.spinning
