@@ -1,4 +1,5 @@
-
+from enum import Enum
+import random
 
 
 class Spin(Enum):
@@ -16,5 +17,8 @@ class Spin(Enum):
   MZ_CCW=-6
 
 
-def random_spin():
-  return random.choice(list(Cube.Spin))
+  def random():
+    return random.choice(list(Spin))
+  
+  def polarity(self):
+    return self.value>0

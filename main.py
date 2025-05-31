@@ -1,4 +1,5 @@
 from vispy import app, gloo
+from vispy.util import keys
 
 import random
 
@@ -9,8 +10,10 @@ from cube import Cube
 
 
 CUBE_SECTIONS = 3
+PATTERN = "donuts"
 
 TICK = 0.10*1000.0/60.0
+SPIN_TIME = 1
 
 # rgba
 X_COLOR = (1,0,0,1)
@@ -34,17 +37,15 @@ class Canvas(app.Canvas):
         self.do_ticks = True
 
         
-        
+        # setup gloo for rendering
         gloo.gl.glEnable(gloo.gl.GL_DEPTH_TEST)
-
-
-        
         gloo.set_viewport(0, 0, *self.physical_size)
         gloo.set_clear_color('black')
 
         self.timer = app.Timer('auto',self.on_timer)
-        self.quat = get_quat(0,(1,1,-1))
-        self.clock=0
+        self.now = 0
+        self.quat = quat_empty()
+        # self.clock=0
         self.timer.start()
 
         self.cube = Cube([X_COLOR,Y_COLOR,Z_COLOR,MX_COLOR,MY_COLOR,MZ_COLOR],CUBE_SECTIONS)
@@ -53,39 +54,20 @@ class Canvas(app.Canvas):
 
         self.spin = self.cube.spin(1)
         self.status = {}
-        for i in self.Cube.Spin:
-          self.status[i] = get_quat(0,(1,1,1))
 
         self.show()
 
     def on_draw(self, event):
         gloo.clear()
-        self.cube.draw()
+        self.cube.draw(self.quat)
 
     def on_resize(self, event):
         gloo.set_viewport(0, 0, *event.physical_size)
 
     def on_timer(self,event):
-      if self.do_ticks:
-        self.clock += TICK
-      
-        spin_set = self.spin.get_set()
-      
-        for idx in spin_set:
-          cube = self.cubes[idx['pos']]
-          cube["spin"] = quat_multiply(get_quat(TICK,self.spin.get_axis()),cube["spin"])
-        
-
-        #self.quat = quat_multiply(self.quat,get_quat(TICK,(1,1,1)))
-
-        while self.clock>90:
-          self.clock-=90
-          self.cubes = apply_rotation(spin_set,self.cubes,self.spin.polarity())
-          #self.spin = random_spin()
-          self.spin=self.spin.next_in_pattern("")
-          #print(self.spin)
-
-        self.update()
+      self.now = event.elapsed
+      self.cube.tick(self.now)
+      self.update()
 
     def on_mouse_press(self,event):
       self.mp = True
@@ -104,12 +86,17 @@ class Canvas(app.Canvas):
         self.update()
       
     def on_key_press(self,event):
-      if not self.debounce:
-        self.do_ticks = not self.do_ticks
-      self.debounce = True
+      if event.key == keys.SPACE:
+        if not self.debounce:
+          self.do_ticks = not self.do_ticks
+        self.debounce = True
+      elif event.key == keys.Key("A") and self.cube.can_spin():
+        self.cube.start_spin(self.spin,self.now,SPIN_TIME)
+        self.spin = Cube.next_spin_in_pattern(PATTERN,self.spin)
     
     def on_key_release(self,event):
-      self.debounce = False
+      if event.key== keys.SPACE:
+        self.debounce = False
 
     def debug_print_cubes(self):
       for n in range(len(self.cubes)):

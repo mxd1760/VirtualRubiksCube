@@ -20,3 +20,7 @@ def normalize(vec3):
     z=vec3[2]
     mag = math.sqrt(x*x+y*y+z*z)
     return (x/mag,y/mag,z/mag)
+
+
+def quat_empty():
+    return (0,0,0,1)
