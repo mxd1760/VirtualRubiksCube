@@ -105,9 +105,6 @@ class Cube:
     self.y_cube_ids = rotation_group_collector(self.slices*(self.slices-1),1,self.slices*self.slices,self.slices)
     self.mz_cube_ids = rotation_group_collector(0,self.slices,self.slices*self.slices,self.slices)
     self.z_cube_ids = rotation_group_collector(self.slices-1,self.slices,self.slices*self.slices,self.slices)   
-    
-    for i in self.x_cube_ids:
-      print(i)
 
     self.spinning = False
     self.cubes = self.get_cubes(1,self.slices)
